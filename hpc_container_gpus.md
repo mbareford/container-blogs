@@ -1,4 +1,4 @@
-GROMACS in a Container on GPUs
-==============================
+Running a Container on GPUs
+===========================
 
 TBC
