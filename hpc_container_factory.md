@@ -23,7 +23,8 @@ Presented below is the top-level creation script for the [GROMACS](https://www.g
 many other scripts, all of which can be found in the [Container Factory GitHub repo](https://github.com/mbareford/container-factory).
 
 <details>
-  <summary>`create.sh` Bash script</summary>
+  <summary>Top-level Creation Script</summary>
+
   ```bash
   #!/bin/bash
 
@@ -35,7 +36,8 @@ many other scripts, all of which can be found in the [Container Factory GitHub r
   echo "Gathering required scripts..."
   APP=gromacs
   SCRIPTS_ROOT=${HOME}/work/scripts
-   ```
+  ```
+
 </details>
 
 ```bash
