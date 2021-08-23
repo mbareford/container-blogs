@@ -1,16 +1,17 @@
 A Container Factory for HPC
 ===========================
 
-This blog post follows on from a previous article entitled [HPC Containers?](hpc_containers.md).
+This blog post follows on from a previous article entitled [HPC Containers?](hpc_containers.md)
 
 We turn now to the container factory, the environment within which containers are first created and then customised
-for various HPC platforms. The container factory is a standalone (virtual) machine providing root-level access. 
-It runs on the [Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the [University of Edinburgh](https://www.ed.ac.uk/). (The factory instance has 8 vCPUs, 16 GB RAM and 160 GB of disk space.)
+for various HPC platforms. The container factory is a standalone machine providing root-level access. It runs on the
+[Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the [University of Edinburgh](https://www.ed.ac.uk/).
+(The factory instance has 8 vCPUs, 16 GB RAM and 160 GB of disk space.)
 
-At the time of writing, the factory OS is Ubuntu 20.04.2, within which is installed (Sylabs) SingularityCE 3.8.1.
+At the time of writing, the factory OS is Ubuntu 20.04.2 and the container software is (Sylabs) [SingularityCE 3.8.1](https://sylabs.io/guides/3.8/user-guide/).
 
 You could of course setup a container factory on your personal laptop (or on any machine where you have root access).
-However, setting up the factory as a cloud-based instance separates that work from any details peculiar to an
+However, establishing the factory as a cloud-based instance separates that work from any details peculiar to an
 individual's machine, and the building of a factory can of course be scripted allowing others to create their own
 container factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
