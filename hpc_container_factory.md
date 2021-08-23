@@ -93,7 +93,7 @@ Presented below is the top-level creation script for the [GROMACS](https://www.g
 
 </details>
 
-The key line in the creation script is the one that builds the container image,
+The key line in the creation script is the one that builds the container image.
 ```bash
 sudo singularity build ${PWD}/${APP}.sif.0 ${SCRIPTS_DEF}/${APP}.def &> create.log
 ```
@@ -272,8 +272,7 @@ is run and then a *new* container image file is downloaded back to the factory.
 
 </details>
 
-What is the deployment script? It is a short script (provided by the repo) that is executed on the
-the target (the HPC host).
+What is the *deployment* script? It is a short script that is executed on the the target (the HPC host).
 
 <details>
   <summary>GROMACS ARCHER2 Deployment Script</summary>
@@ -307,9 +306,9 @@ the target (the HPC host).
 
 </details>
 
-The first important step of the deployment is the extraction of the bind paths (the links between the container OS and
-the host OS) that will need to be specified when the containerized application is built. These bind
-paths of are course different for each HPC host. The paths for the ARCHER2 4cab system are presented below.
+Near the start of the deployment, the bind paths - the links between the container and host file systems - are
+extracted from the container image. These paths are needed for when the containerized application is built and
+are different for each HPC host. Presented below are the bind paths for the ARCHER2 4cab system.
 
 ```bash
 # https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/host/archer2/bindpaths.lst
@@ -321,14 +320,14 @@ You can see that the bind paths are given as a comma separated list. The syntax 
 follows `src[:dest[:opts]]`, where `src` and `dest` are respectively, outside (on the host) and inside the container.
 If `dest` is not given, it is set equal to `src`.  Lastly, the `opts` setting is `rw` by default.
 
-Returning to the deployment script, the container image is converted to a sandbox in preparation for
+Returning to the deployment script, the container image is now converted to a sandbox in preparation for
 building the (GROMACS) code. Container images are immutable objects; this conflicts with the fact
 that a code compilation will add new files to the container. The solution is to convert the container
 to a sandbox directory and then use the `--writable` flag when building the code within the sandbox.
-Once the build has completed, the sandboxed container is converted back to an image file (in fact
+Once the build has completed, the sandboxed container is converted back to an image file (in fact,
 the deployment script uses the `--force` flag to ensure that the original image file is overwritten).
 
-The GROMACS build script is shown below --- the `cmake` command has been abbreviated for clarity.
+The GROMACS build script is shown below &mdash; the `cmake` command has been abbreviated for clarity.
 
 <details>
   <summary>GROMACS Build Script</summary>
@@ -417,7 +416,8 @@ LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:\
 The sourcing of `env.sh` enables the make command to find the headers and libraries required to build the containerized application.
 
 Notice also, that the `build.sh` script takes some care ensuring that the make output is directed to an appropriately named log file.
-As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command (`singularity inspect -H gromacs.sif.2`)
+As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command,\
+`singularity inspect -H gromacs.sif.2`.
 
 ```bash
 This GROMACS (http://www.gromacs.org/) container image files was created at the EPCC Container Factory,
@@ -437,10 +437,9 @@ These script files are named "submit.sh" and are organised by "<host name>/<MPI 
                      (/opt/logs/make.log.2)
 ```
 
-The above output is revealed by running something like `singularity inspect -H gromacs.sif.2`. We see that the GROMACS code has been targeted
-twice at the ARCHER2 platform, once using Cray MPICH v8 and again using OpenMPI v4. Both of these events are time stamped and the
-container-based paths to the make logs are indicated. In this way, ownership of a container image should be sufficient for
-determining the HPC platforms on which the containerized application is expected to run. Note also that batch submission script
+We see that the GROMACS code has been targeted twice at the ARCHER2 platform, once using Cray MPICH v8 and again using OpenMPI v4. Both of
+these events are time stamped and the container-based paths to the make logs are indicated. In this way, ownership of a container image should
+be sufficient for determining the HPC platforms on which the containerized application is expected to run. Note also that batch submission script
 templates also exist within the container.
 
 
@@ -452,7 +451,7 @@ container on the HPC host.
 Addendum
 --------
 
-Recent versions of Singularity ($\ge$ 3.7.x), may provide a further complication: the need to create host-specific file paths within the container
+Recent versions of Singularity (&geq; 3.7.x), may provide a further complication: the need to create host-specific file paths within the container
 before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version of Singularity installed on
 that platform is 3.5.3-1, but, the [Tier-2 Cirrus machine](https://www.cirrus.ac.uk/) has Singularity v3.7.2-1. And so, targeting the GROMACS
 container at Cirrus, first requires the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the use of the various
