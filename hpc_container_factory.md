@@ -1,7 +1,7 @@
 A Container Factory for HPC
 ===========================
 
-This blog post follows on from a previous article entitled [HPC Containers?](hpc_containers.md)
+This blog post follows on from a previous article entitled "[HPC Containers?](hpc_containers.md)".
 
 We turn now to the container factory, the environment within which containers are first created and then customised
 for various HPC platforms. The container factory is a standalone machine providing root-level access. It runs on the
@@ -12,12 +12,12 @@ At the time of writing, the factory OS is Ubuntu 20.04.2 and the container softw
 
 You could of course setup a container factory on your personal laptop (or on any machine where you have root access).
 However, establishing the factory as a cloud-based instance separates that work from any details peculiar to an
-individual's machine, and the building of a factory can of course be scripted allowing others to create their own
-container factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
+individual's machine, and the building of a factory can also be scripted allowing others to create their own container
+factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
 The two sections that follow contain many script blocks; these have been added as collapsible items so as to improve
-readability. At the start of each script block is the corresponding path from the Container Factory repository](https://github.com/mbareford/container-factory).
-All subsidiary scripts referenced can also be find within this GitHub project.
+readability. At the start of each script block is the corresponding path from the [Container Factory repository](https://github.com/mbareford/container-factory).
+All subsidiary scripts referenced can also be found within this GitHub project.
 
 
 Creating the Initial Container Image
