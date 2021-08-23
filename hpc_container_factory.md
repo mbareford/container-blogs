@@ -1,7 +1,9 @@
 A Container Factory for HPC
 ===========================
 
-This blog post follows on from a previous article entitled "[HPC Containers?](hpc_containers.md)".
+This blog post follows on from a previous article entitled "[HPC Containers?](hpc_containers.md)". That article
+showed how to run a containerized GROMACS application across multiple compute nodes. The purpose of this post
+is to explain how that container was made.
 
 We turn now to the container factory, the environment within which containers are first created and then customised
 for various HPC platforms. The container factory is a standalone machine providing root-level access. It runs on the
@@ -23,7 +25,7 @@ All subsidiary scripts referenced can also be found within this GitHub project.
 Creating the Initial Container Image
 ------------------------------------
 
-The making of an application-specific container takes place within the factory builds area, e.g., `~/work/builds/gromacs`.
+The making of an application-specific container takes place within the factory builds folder, e.g., `~/work/builds/gromacs`.
 Presented below is the top-level creation script for the [GROMACS](https://www.gromacs.org/) code. 
 
 <details>
@@ -327,7 +329,7 @@ to a sandbox directory and then use the `--writable` flag when building the code
 Once the build has completed, the sandboxed container is converted back to an image file (in fact,
 the deployment script uses the `--force` flag to ensure that the original image file is overwritten).
 
-The GROMACS build script is shown below &mdash; the `cmake` command has been abbreviated for clarity.
+The GROMACS build script (called from `deploy.sh`) is shown below &mdash; the `cmake` command has been abbreviated for clarity.
 
 <details>
   <summary>GROMACS Build Script</summary>
@@ -447,12 +449,15 @@ It is apparent that this *targeting* workflow is somewhat complex involving many
 The exceptions are the deployment script which is run on the HPC host and the build script which is run within the sandboxed Singularity
 container on the HPC host.
 
+Other codes such as [CASTEP](http://www.castep.org/) and [RAMSES](https://www.ics.uzh.ch/~teyssier/ramses/RAMSES.html) have been containerized in a similar manner and run successfully on ARCHER2.
+These successes suggest that the design implict in the Container Factory script hierarchy will be flexible enough to accommodate more parallel codes (and more HPC platforms).
+
 
 Addendum
 --------
 
-Recent versions of Singularity (&geq; 3.7.x), may provide a further complication: the need to create host-specific file paths within the container
+Recent versions of Singularity (&geq; 3.7.x) may provide a further complication: the need to create host-specific file paths within the container
 before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version of Singularity installed on
 that platform is 3.5.3-1, but, the [Tier-2 Cirrus machine](https://www.cirrus.ac.uk/) has Singularity v3.7.2-1. And so, targeting the GROMACS
 container at Cirrus, first requires the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the use of the various
-bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by the [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh) script.
+bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by the [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh).
