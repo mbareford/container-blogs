@@ -16,7 +16,7 @@ individual's machine, and the building of a factory can also be scripted allowin
 factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
 The two sections that follow contain many script blocks; these have been added as collapsible items so as to improve
-readability. At the start of each script block is the corresponding path from the [Container Factory repository](https://github.com/mbareford/container-factory).
+readability. At the start of each block is the corresponding path from the [Container Factory repository](https://github.com/mbareford/container-factory).
 All subsidiary scripts referenced can also be found within this GitHub project.
 
 
@@ -93,8 +93,11 @@ Presented below is the top-level creation script for the [GROMACS](https://www.g
 
 </details>
 
-The key line in the creation script is the one that builds the container image, `sudo singularity build ${PWD}/${APP}.sif.0 ${SCRIPTS_DEF}/${APP}.def &> create.log`;
-it takes as input a Singularity definition file, e.g., `gromacs.def`.
+The key line in the creation script is the one that builds the container image,
+```bash
+sudo singularity build ${PWD}/${APP}.sif.0 ${SCRIPTS_DEF}/${APP}.def &> create.log
+```
+It takes as input a Singularity definition file, e.g., `${HOME}/work/scripts/def/gromacs.def`.
 
 <details>
   <summary>GROMACS Singularity Definition File</summary>
@@ -163,7 +166,7 @@ it takes as input a Singularity definition file, e.g., `gromacs.def`.
 </details>
 
 The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) as well as the GCC compiler (major) version. Subsequent
-commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple script called
+commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source* code. The installation of the GROMACS source is handled by a simple script called
 `source.sh`.
 
 <details>
@@ -191,7 +194,8 @@ commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. 
 
 Information on the other sections listed in the definiton file (e.g., `files`, `test` and `help`) can be found in the [SingularityCE User Guide](https://sylabs.io/guides/3.8/user-guide/definition_files.html).
 
-The creation phase should result in an image file such as `gromacs.sif.0`. which can then be *inspected* by running `singularity inspect -H gromacs.sif.0`.
+The creation phase should result in an image file such as `gromacs.sif.0`. which can then be *inspected* by running \
+`singularity inspect -H gromacs.sif.0`.
 
 ```bash
 This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
