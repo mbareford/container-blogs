@@ -4,16 +4,413 @@ A Container Factory for HPC
 This blog post follows on from a previous article entitled [HPC Containers?](hpc_containers.md).
 
 We turn now to the container factory, the environment within which containers are first created and then customised
-for various HPC platforms. The container factory is standalone (virtual) machine providing root-level access. 
-Specifically, the factory is a Ubuntu 20.04 instance running within the [Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the [University of Edinburgh](https://www.ed.ac.uk/). It has 8 vCPUs, 16 GB RAM and 160 GB of disk space.
+for various HPC platforms. The container factory is a standalone (virtual) machine providing root-level access. 
+It runs on the [Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the [University of Edinburgh](https://www.ed.ac.uk/). (The factory instance has 8 vCPUs, 16 GB RAM and 160 GB of disk space.)
 
-The factory has installed (Sylabs) Singularity 3.8.0.
+At the time of writing, the factory OS is Ubuntu 20.04.2, within which is installed (Sylabs) SingularityCE 3.8.1.
+
+You could of course setup a container factory on your personal laptop (or on any machine where you have root access).
+However, setting up the factory as a cloud-based instance separates that work from any details peculiar to an
+individual's machine, and the building of a factory can of course be scripted allowing others to create their own
+container factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
 
+Creating the Container
+----------------------
+
+The creation of an application-specific container takes place within the factory builds area, e.g., `~/work/builds/gromacs`.
+Presented below is the top-level creation script for the [GROMACS](https://www.gromacs.org/) code. This script references 
+many other scripts, all of which can be found in the [Container Factory GitHub repo](https://github.com/mbareford/container-factory).
+
+<details>
+  <summary>`create.sh` Bash script</summary>
+  ```bash
+  #!/bin/bash
+
+  echo "Deleting old images, logs and scripts..."
+  rm -f *.sif*
+  rm -f *.log
+  rm -rf scripts*
+
+  echo "Gathering required scripts..."
+  APP=gromacs
+  SCRIPTS_ROOT=${HOME}/work/scripts
+   ```
+</details>
+
+```bash
+#!/bin/bash
+
+echo "Deleting old images, logs and scripts..."
+rm -f *.sif*
+rm -f *.log
+rm -rf scripts*
+
+echo "Gathering required scripts..."
+APP=gromacs
+SCRIPTS_ROOT=${HOME}/work/scripts
+SCRIPTS_DEF=${SCRIPTS_ROOT}/def
+SCRIPTS_APP=${SCRIPTS_ROOT}/app/${APP}
+SCRIPTS_SNG=${SCRIPTS_ROOT}/fac/singularity
+
+mkdir -p ./scripts/aux
+cp ${SCRIPTS_ROOT}/aux/download_src.sh ./scripts/aux/
+cp ${SCRIPTS_ROOT}/aux/install_cmp.sh ./scripts/aux/
+cp ${SCRIPTS_ROOT}/aux/setup_env.sh ./scripts/aux/
+cp ${SCRIPTS_ROOT}/aux/update_env.sh ./scripts/aux/
+cp ${SCRIPTS_ROOT}/aux/add_log.sh ./scripts/aux/
+cp ${SCRIPTS_ROOT}/aux/add_dirs.sh ./scripts/aux/
+
+mkdir -p ./scripts/chk
+cp ${SCRIPTS_ROOT}/chk/check_os.sh ./scripts/chk/
+cp ${SCRIPTS_ROOT}/chk/check_gcc.sh ./scripts/chk/
+cp ${SCRIPTS_ROOT}/chk/check_cmp.sh ./scripts/chk/
+
+mkdir -p ./scripts/def
+cp ${SCRIPTS_ROOT}/def/gromacs.def ./scripts/def/
+
+mkdir -p ./scripts/os
+cp ${SCRIPTS_ROOT}/os/ubuntu-20.04.sh ./scripts/os/
+
+mkdir -p ./scripts/cmp
+cp -r ${SCRIPTS_ROOT}/cmp/miniconda ./scripts/cmp/
+cp ${SCRIPTS_ROOT}/cmp/cmake.sh ./scripts/cmp/
+
+mkdir -p ./scripts/app/${APP}
+cp ${SCRIPTS_APP}/source.sh ./scripts/app/${APP}/
+cp ${SCRIPTS_APP}/build.sh ./scripts/app/${APP}/
+cp -r ${SCRIPTS_APP}/host ./scripts/app/${APP}/
+
+tar -czf scripts.tar.gz ./scripts
+rm -rf scripts
+
+echo "Creating ${APP} singularity image file..."
+${SCRIPTS_SNG}/create.sh ${SCRIPTS_DEF}/${APP}.def ${PWD}/${APP}.sif.0 &> create.log
+
+echo "Adding creation log to image file..."
+${SCRIPTS_SNG}/add_log.sh ${PWD}/${APP}.sif.0 create log
+
+echo "Final tidy up..."
+rm create.log
+rm scripts.tar.gz
+
+echo "Creation complete!"
+echo "${PWD}/${APP}.sif.0"
+```
+
+The key line in the script above is the one that creates the container image; it takes
+as input a Singularity definition file, `gromacs.def`.
+
+```bash
+Bootstrap: library
+From: ubuntu:20.04
+
+%setup
+    # empty
+
+%files
+    ${HOME}/work/scripts/post_start.sh /opt/
+    ${HOME}/work/scripts/post_stop.sh /opt/
+    ${HOME}/work/builds/gromacs/scripts.tar.gz /opt/
+
+%environment
+    # empty
+
+%post
+    . /opt/post_start.sh
+
+    ubuntu-20.04.sh 10
+
+    miniconda.sh 3 4.8.3 38
+    conda_install.sh numpy,scipy,matplotlib
+
+    cmake.sh 3.18.4
+
+    source.sh gromacs 2021.1
+
+    . /opt/post_stop.sh
+
+%runscript
+    # empty
+
+%startscript
+    # empty
+
+%test
+    ROOT=/opt/scripts
+    export PATH=${ROOT}/chk:${ROOT}/aux:${ROOT}/os:${ROOT}/cmp:${PATH}
+    check_os.sh "Ubuntu 20.04.2"
+    check_gcc.sh "10.3.0"
+    check_cmp.sh ${MINICONDA3_ROOT} ${MINICONDA3_NAME}
+    check_cmp.sh ${CMAKE_ROOT} ${CMAKE_NAME}
+
+%labels
+    Author Michael Bareford
+    Email m.bareford@epcc.ed.ac.uk
+    Version v1.0.0
+
+%help
+    This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
+    an OpenStack Ubuntu 20.04 instance (ID 859596f3-6683-4951-82d4-f9e080c30d1f) hosted by the University of Edinburgh Eleanor Research Cloud.
+
+    The container is based on Ubuntu 20.04 and features GCC 10.3.0, Miniconda3 4.8.3, CMake 3.18.4 and the GROMACS source code version 2021.1.
+    See the container creation log at "/opt/logs/create.log.0" and the original definition file at "/opt/scripts/def/gromacs.def".
+
+    Submission script templates can be found under "/opt/scripts/app/gromacs/host/".
+    These script files are named "submit.sh" and are organised by "<host name>/<MPI library>/<compiler>".
+```
+
+The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) and the GCC compiler (major) version. Subsequent
+commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple
+script called `source.sh`, see below.
+
+```bash
+#!/bin/bash
+  
+VERSION=$2
+LABEL=$1
+NAME=${LABEL}-${VERSION}
+ROOT=/opt/app/${LABEL}
+
+mkdir -p ${ROOT}
+cd ${ROOT}
+
+wget https://ftp.gromacs.org/${LABEL}/${NAME}.tar.gz
+tar -xzf ${NAME}.tar.gz
+rm ${NAME}.tar.gz
+```
+
+The creation phase should result in an image file such as `gromacs.sif.0`. This file can be *inspected* by running
+`singularity inspect -H gromacs.sif.0`.
+
+```bash
+This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
+an OpenStack Ubuntu 20.04 instance (ID 859596f3-6683-4951-82d4-f9e080c30d1f) hosted by the University of Edinburgh Eleanor Research Cloud.
+
+The container is based on Ubuntu 20.04 and features GCC 10.3.0, Miniconda3 4.8.3, CMake 3.18.4 and the GROMACS source code version 2021.1.
+See the container creation log at "/opt/logs/create.log.0" and the original definition file at "/opt/scripts/def/gromacs.def".
+
+Submission script templates can be found under "/opt/scripts/app/gromacs/host/".
+These script files are named "submit.sh" and are organised by "<host name>/<MPI library>/<compiler>".
+```
+
+You can see that the text returned was provided by the Singularity definition file. It is reproduced here to illustrate the principle
+that the provenance of a container should always be accessible via the Singularity inspect `-H` command. Note, that the text gives
+the paths to the original definition file as well as the output generated by running `sudo singularity build ...`. Those two files
+are trivial to access.
+
+```bash
+singularity exec gromacs.sif.0 cat /opt/scripts/def/gromacs.def
+singularity exec gromacs.sif.0 cat /opt/logs/create.log.0
+```
+
+From now on, this provenance history grows every time the containerized application is built on a HPC platform.
 
 
+Targeting the container
+-----------------------
 
-Initially, the container features an OS (also Ubuntu 20.04) and the GROMACS 2021.1 source code. The container is then
-setup as a writable sandbox on ARCHER2 within which GROMACS is built. Following this, the sandbox is converted back to a container image file and
-downloaded. The whole "targetting" process is directed from the factory and so can be repeated for other HPC platforms. A final GROMACS container
-could therefore hold multiple executables each one targetting a different HPC host (and MPI library).
+The command below starts the process that compiles the containerized GROMACS source on the ARCHER2 4cab system. The final string argument
+specifies the GROMACS version (2021.1), the host MPI library (Cray MPICH v8) and the compiler (GCC v10).
+
+```bash
+~/work/scripts/fac/singularity/target.sh ~/work/scripts ${PWD} gromacs archer2 "/work/z19/z19/mrb4cab/containers/build" "2021.1 cmpich8-ofi gcc10"
+```
+
+The `target.sh` script is actually quite simple: the container image file is uploaded to the HPC platform (the target), a *deployment* script
+is run and then a *new* container image file is downloaded back to the factory.
+
+```bash
+#!/bin/bash
+
+SCRIPTS_ROOT=$1
+IMG_PATH=$2
+APP=$3
+HOST=$4
+DEPLOY_PATH=$5
+DEPLOY_ARGS="${APP} ${DEPLOY_PATH}/${APP}.sif \"$6\""
+DEPLOY_SCRIPT=${SCRIPTS_ROOT}/app/${APP}/host/${HOST}/deploy.sh
+
+. ${SCRIPTS_ROOT}/fac/singularity/get_latest_suffix.sh
+get_latest_suffix ${IMG_PATH} ${APP}
+next_suffix=`expr ${suffix} + 1`
+
+echo "Uploading ${APP} singularity image to ${HOST} host..."
+scp ${IMG_PATH}/${APP}.sif.${suffix} ${HOST}:${DEPLOY_PATH}/${APP}.sif
+
+echo "Running the deployment script that builds a containerized ${APP} app on the ${HOST} host..."
+ssh ${HOST} "bash -ls" < ${DEPLOY_SCRIPT} ${DEPLOY_ARGS}
+
+echo "Downloading new ${APP} singularity image from ${HOST} host..."
+scp ${HOST}:${DEPLOY_PATH}/${APP}.sif ${IMG_PATH}/${APP}.sif.${next_suffix}
+
+echo "Deleting the ${APP} singularity image left on ${HOST} host..."
+ssh ${HOST} rm -f ${DEPLOY_PATH}/${APP}.sif
+
+echo "Targeting complete!"
+echo "${IMG_PATH}/${APP}.sif.${next_suffix}"
+```
+
+What is the deployment script? It is a short script (provided by the repo) that is executed on the
+the target (the HPC host).
+
+The deployment script may vary slightly from host to host: some HPC platforms have Singularity installed
+such that it is automatically provided, whereas other platforms require that you first run a module
+load command.
+
+```bash
+#!/bin/bash
+  
+APP=$1
+SIF=$2
+HOST=archer2
+BUILD_ARGS="${HOST} $3"
+BIND_ARGS=`singularity exec ${SIF} cat /opt/scripts/app/${APP}/host/${HOST}/bindpaths.lst`
+
+echo "Converting ${APP} container image to sandbox..."
+singularity build --sandbox ${SIF}.sandbox ${SIF}
+echo ""
+
+echo "Building ${APP} within container sandbox..."
+singularity exec -B ${BIND_ARGS} --writable ${SIF}.sandbox /opt/scripts/app/${APP}/build.sh ${BUILD_ARGS}
+echo ""
+
+echo "Converting ${APP} container sandbox back to image..."
+singularity build --force ${SIF} ${SIF}.sandbox
+echo ""
+
+echo "Deleting ${APP} container sandbox..."
+rm -rf ${SIF}.sandbox
+```
+
+The first important step is the extraction of the bind paths (the links between the container OS and
+the host OS) that will need to be specified when the containerized application is built. These bind
+paths of are course different for each HPC host. The paths for the ARCHER2 4cab system are presented below.
+
+```bash
+/work/y07/shared,/opt/cray,/usr/lib64:/usr/lib64/host
+```
+
+You can see that multiple bind paths are given as a comma separated list. The syntax for a sinle bind path
+follows `src[:dest[:opts]]`, where `src` and `dest` are respectively, outside (on the host) and inside the container.
+If `dest` is not given, it is set equal to `src`.  Lastly, the `opts` setting is `rw` by default.
+
+Returning to the deployment script, the container image is converted to a sandbox in preparation for
+building the (GROMACS) code. Container images are immutable objects; this conflicts with the fact
+that a code compilation will add new files to the container. The solution is to convert the container
+to a sandbox directory and then use the `--writable` flag when building the code within the sandbox.
+Once the build has completed, the sandboxed container is converted back to an image file (in fact
+the deployment script uses the `--force` flag to ensure that the original image file is overwritten).
+
+The GROMACS build script is shown below --- the `cmake` command has been abbreviated for clarity.
+
+```bash
+#!/bin/bash
+
+HOST=$1
+VERSION=$2
+MPI_LABEL=$3
+COMPILER_LABEL=$4
+
+LABEL=gromacs
+NAME=${LABEL}-${VERSION}
+ROOT=/opt/app/${LABEL}
+HOST_PATH=${HOST}/${MPI_LABEL}/${COMPILER_LABEL}
+SCRIPTS_ROOT=/opt/scripts/app/${LABEL}/host/${HOST_PATH}
+BUILD_ROOT=${ROOT}/${NAME}
+INSTALL_ROOT=${ROOT}/${VERSION}/${HOST_PATH}
+LOG_ROOT=/opt/logs
+CMAKE_PRELOAD=/lib/x86_64-linux-gnu/libssl.so.1.1:/lib/x86_64-linux-gnu/libcrypto.so.1.1
+
+# set the build environment
+. ${SCRIPTS_ROOT}/env.sh
+
+# set make log name
+mkdir -p ${LOG_ROOT}
+if [ -f "${LOG_ROOT}/.make" ]; then
+  makecnt=`cat ${LOG_ROOT}/.make`
+  makecnt=`expr ${makecnt} + 1`
+else
+  makecnt="1"
+fi
+MAKE_LOG=${LOG_ROOT}/make.log.${makecnt}
+echo "${makecnt}" > ${LOG_ROOT}/.make
+
+# set compiler and build flags
+export CXX=g++
+export CC=gcc
+export FLAGS="-O3 -ftree-vectorize -funroll-loops"
+
+# build
+BUILD_PATH=${BUILD_ROOT}/build/${HOST_PATH}/single
+rm -rf ${BUILD_PATH}
+mkdir -p ${BUILD_PATH}
+cd ${BUILD_PATH}
+
+LD_PRELOAD=${CMAKE_PRELOAD} cmake ${BUILD_ROOT} \
+    -DGMX_MPI=ON -DGMX_OPENMP=ON -DGMX_HWLOC=OFF -DGMX_GPU=OFF \
+    ...
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_ROOT} &> ${MAKE_LOG}
+
+LD_PRELOAD=${CMAKE_PRELOAD} make install &>> ${MAKE_LOG}
+
+# record
+currentDateTime=`date +"%Y-%m-%d %T"`
+echo "    ${currentDateTime}: Built ${LABEL} ${VERSION} (${MPI_LABEL}-${COMPILER_LABEL}) on ${HOST}" >> /.singularity.d/runscript.help
+echo "                         (${MAKE_LOG})" >> /.singularity.d/runscript.help
+echo "" >> /.singularity.d/runscript.help
+```
+
+At the beginning of the build script many environment variables are initialised; a further set of variables are initialised by sourcing
+a second script called `env.sh` located within the container on a path that defines a particular combination of HPC host, MPI library
+and compiler, e.g., `/opt/scripts/app/gromacs/host/archer2/cmpich8-ofi/gcc10`. The content of the `env.sh` for that particular example
+is produced below.
+
+```bash
+MPI_ROOT=/opt/cray/pe/mpich/8.0.16/ofi/gnu/9.1
+MPI_C_LIB=mpi
+MPI_CXX_LIB=mpi
+LIBSCI_ROOT=/opt/cray/pe/libsci/20.10.1.2/GNU/9.1/x86_64
+FFTW_ROOT=/opt/cray/pe/fftw/3.3.8.8/x86_rome
+BLAS_LIBRARIES=${LIBSCI_ROOT}/lib/libsci_gnu_82_mpi_mp.so
+LAPACK_LIBRARIES=${BLAS_LIBRARIES}
+LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:/opt/cray/pe/lib64:/opt/cray/libfabric/1.11.0.0.233/lib64:/usr/lib64/host:/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu/libibverbs:/.singularity.d/libs
+```
+
+The sourcing of `env.sh` enables the make command to find the headers and libraries required to build the containerized application.
+
+Notice also, that the `build.sh` script takes some care ensuring that the make output is directed to appropriately named log files.
+As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command (`singularity inspect -H gromacs.sif.2`)
+
+```bash
+This GROMACS (http://www.gromacs.org/) container image files was created at the EPCC Container Factory,
+an OpenStack Ubuntu 20.04 instance (ID 859596f3-6683-4951-82d4-f9e080c30d1f) hosted by the University of Edinburgh Eleanor Research Cloud.
+
+The container is based on Ubuntu 20.04 and features GCC 10.0.1, Miniconda3 4.8.3, CMake 3.18.4 and the GROMACS source code version 2021.1.
+See the container creation log at "/opt/logs/create.log.0" and the original definition file at "/opt/scripts/def/gromacs.def".
+
+Submission script templates can be found under "/opt/scripts/app/gromacs/host/".
+These script files are named "submit.sh" and are organised by "<host name>/<MPI library>/<compiler>".
+
+
+2021-05-25 12:39:53: Built gromacs 2021.1 (cmpich8-ofi-gcc10) on archer2
+                     (/opt/logs/make.log.1)
+
+2021-05-25 13:42:56: Built gromacs 2021.1 (ompi4-ofi-gcc10) on archer2
+                     (/opt/logs/make.log.2)
+```
+
+The above output might have hbeen revealed by running something like `singularity inspect -H gromacs.sif.2`.
+We see that the GROMACS code has been targeted twice at the ARCHER2 platform, once using Cray MPICH v8 and
+again using OpenMPI v4. Both of these events are time stampted and the container-based paths to the make logs are indicated
+
+
+It is apparent that this *targeting* workflow is somewhat complex involving many Bash scripts that can be executed in one of several
+environments, the Container Factory, the HPC host and a sandboxed Singularity container on the HPC host.
+
+In addition, recent versions of Singularity (>= 3.7.x), may provide a further complication: the need to create host-specific file paths
+within the container before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version
+of Singularity installed on that platform is 3.5.3-1, but the Tier-2 Cirrus machine has Singularity v3.7.2-1. And so, targeting the
+GROMACS container at Cirrus first requires that the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the
+use of the various bindpaths specified in the Cirrus `deploy.sh` script. This extra step is handled by the factory [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh)
+script.
