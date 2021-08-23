@@ -195,7 +195,7 @@ commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source* code. 
 
 Information on the other sections listed in the definiton file (e.g., `files`, `test` and `help`) can be found in the [SingularityCE User Guide](https://sylabs.io/guides/3.8/user-guide/definition_files.html).
 
-The creation phase should result in an image file such as `gromacs.sif.0`. which can then be *inspected* by running \
+The creation phase should result in an image file such as `gromacs.sif.0` that can be *inspected* by running \
 `singularity inspect -H gromacs.sif.0`.
 
 ```bash
@@ -439,9 +439,9 @@ These script files are named "submit.sh" and are organised by "<host name>/<MPI 
 ```
 
 We see that the GROMACS code has been targeted twice at the ARCHER2 platform, once using Cray MPICH v8 and again using OpenMPI v4. Both of
-these events are time stamped and the container-based paths to the make logs are indicated. In this way, ownership of a container image should
-be sufficient for determining the HPC platforms on which the containerized application is expected to run. Note also that batch submission script
-templates also exist within the container.
+these events are time stamped and the container-based paths to the make logs are indicated. In this way, possession of a container image file
+should be sufficient for determining the HPC platforms on which the containerized application is expected to run. Note also that batch submission
+script templates also exist within the container.
 
 
 It is apparent that this *targeting* workflow is somewhat complex involving many Bash scripts most of which are executed at the factory.
@@ -459,4 +459,4 @@ Recent versions of Singularity (&geq; 3.7.x) may provide a further complication:
 before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version of Singularity installed on
 that platform is 3.5.3-1, but, the [Tier-2 Cirrus machine](https://www.cirrus.ac.uk/) has Singularity v3.7.2-1. And so, targeting the GROMACS
 container at Cirrus, first requires the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the use of the various
-bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by the [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh).
+bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh).
