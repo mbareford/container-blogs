@@ -1,9 +1,8 @@
 A Container Factory for HPC
 ===========================
 
-This blog post follows on from a previous article entitled "[HPC Containers?](hpc_containers.md)". That article
-showed how to run a containerized GROMACS application across multiple compute nodes. The purpose of this post
-is to explain how that container was made.
+This blog post follows on from "[HPC Containers?](hpc_containers.md)", which showed how to run a containerized GROMACS
+application across multiple compute nodes. The purpose of this post is to explain how that container was made.
 
 We turn now to the container factory, the environment within which containers are first created and then customised
 for various HPC platforms. The container factory is a standalone machine providing root-level access. It runs on the
