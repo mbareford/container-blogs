@@ -5,7 +5,7 @@ This blog post follows on from a previous article entitled [HPC Containers?](hpc
 
 We turn now to the container factory, the environment within which containers are first created and then customised
 for various HPC platforms. The container factory is a standalone machine providing root-level access. It runs on the
-[Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the [University of Edinburgh](https://www.ed.ac.uk/).
+[Eleanor Research Cloud](https://www.ed.ac.uk/information-services/computing/computing-infrastructure/cloud-computing-service/researcher-cloud-service-eleanor) at the University of Edinburgh.
 (The factory instance has 8 vCPUs, 16 GB RAM and 160 GB of disk space.)
 
 At the time of writing, the factory OS is Ubuntu 20.04.2 and the container software is (Sylabs) [SingularityCE 3.8.1](https://sylabs.io/guides/3.8/user-guide/).
@@ -15,16 +15,19 @@ However, establishing the factory as a cloud-based instance separates that work 
 individual's machine, and the building of a factory can of course be scripted allowing others to create their own
 container factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
+The two sections that follow contain many script blocks; these have been added as collapsible items so as to improve
+readability. At the start of each script block is the corresponding path from the Container Factory repository](https://github.com/mbareford/container-factory).
+All subsidiary scripts referenced can also be find within this GitHub project.
+
 
 Creating the Initial Container Image
 ------------------------------------
 
 The making of an application-specific container takes place within the factory builds area, e.g., `~/work/builds/gromacs`.
-Presented below is the top-level creation script for the [GROMACS](https://www.gromacs.org/) code. This script references 
-many other scripts, all of which can be found in the [Container Factory GitHub repo](https://github.com/mbareford/container-factory).
+Presented below is the top-level creation script for the [GROMACS](https://www.gromacs.org/) code. 
 
 <details>
-  <summary>Creation Script</summary>
+  <summary>GROMACS Creation Script</summary>
 
   ```bash
   # https://github.com/mbareford/container-factory/blob/main/builds/gromacs/create.sh
@@ -90,7 +93,8 @@ many other scripts, all of which can be found in the [Container Factory GitHub r
 
 </details>
 
-The key line in the script above is the one that builds the container image; it takes as input a Singularity definition file, `gromacs.def`.
+The key line in the creation script is the one that builds the container image, `sudo singularity build ${PWD}/${APP}.sif.0 ${SCRIPTS_DEF}/${APP}.def &> create.log`;
+it takes as input a Singularity definition file, e.g., `gromacs.def`.
 
 <details>
   <summary>GROMACS Singularity Definition File</summary>
@@ -160,7 +164,7 @@ The key line in the script above is the one that builds the container image; it 
 
 The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) as well as the GCC compiler (major) version. Subsequent
 commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple script called
-`source.sh`, see below.
+`source.sh`.
 
 <details>
   <summary>GROMACS Source Script</summary>
@@ -185,8 +189,9 @@ commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. 
 
 </details>
 
-The creation phase should result in an image file such as `gromacs.sif.0`. This file can be *inspected* by running
-`singularity inspect -H gromacs.sif.0`.
+Information on the other sections listed in the definiton file (e.g., `files`, `test` and `help`) can be found in the [SingularityCE User Guide](https://sylabs.io/guides/3.8/user-guide/definition_files.html).
+
+The creation phase should result in an image file such as `gromacs.sif.0`. which can then be *inspected* by running `singularity inspect -H gromacs.sif.0`.
 
 ```bash
 This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
@@ -209,7 +214,7 @@ singularity exec gromacs.sif.0 cat /opt/scripts/def/gromacs.def
 singularity exec gromacs.sif.0 cat /opt/logs/create.log.0
 ```
 
-From now on, this provenance history grows every time the containerized application is built on a HPC platform.
+From now on, this provenance history grows every time the containerized application is built on (or targeted at) a HPC platform.
 
 
 Targeting the container
@@ -229,6 +234,8 @@ is run and then a *new* container image file is downloaded back to the factory.
   <summary>Targeting Script</summary>
 
   ```bash
+  # https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target.sh
+
   #!/bin/bash
 
   SCRIPTS_ROOT=$1
@@ -264,14 +271,12 @@ is run and then a *new* container image file is downloaded back to the factory.
 What is the deployment script? It is a short script (provided by the repo) that is executed on the
 the target (the HPC host).
 
-The deployment script may vary slightly from host to host: some HPC platforms have Singularity installed
-such that it is automatically provided, whereas other platforms require that you first run a module
-load command.
-
 <details>
-  <summary>Deployment Script</summary>
+  <summary>GROMACS ARCHER2 Deployment Script</summary>
 
   ```bash
+  # https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/host/archer2/deploy.sh
+
   #!/bin/bash
   
   APP=$1
@@ -298,15 +303,17 @@ load command.
 
 </details>
 
-The first important step is the extraction of the bind paths (the links between the container OS and
+The first important step of the deployment is the extraction of the bind paths (the links between the container OS and
 the host OS) that will need to be specified when the containerized application is built. These bind
 paths of are course different for each HPC host. The paths for the ARCHER2 4cab system are presented below.
 
 ```bash
+# https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/host/archer2/bindpaths.lst
+
 /work/y07/shared,/opt/cray,/usr/lib64:/usr/lib64/host
 ```
 
-You can see that multiple bind paths are given as a comma separated list. The syntax for a sinle bind path
+You can see that the bind paths are given as a comma separated list. The syntax for a single bind path
 follows `src[:dest[:opts]]`, where `src` and `dest` are respectively, outside (on the host) and inside the container.
 If `dest` is not given, it is set equal to `src`.  Lastly, the `opts` setting is `rw` by default.
 
@@ -323,6 +330,8 @@ The GROMACS build script is shown below --- the `cmake` command has been abbrevi
   <summary>GROMACS Build Script</summary>
 
   ```bash
+  # https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/build.sh
+
   #!/bin/bash
 
   HOST=$1
@@ -381,12 +390,14 @@ The GROMACS build script is shown below --- the `cmake` command has been abbrevi
 
 </details>
 
-At the beginning of the build script many environment variables are initialised; a further set of variables are initialised by sourcing
+At the beginning of the build script, many environment variables are initialised; a further set of variables are initialised by sourcing
 a second script called `env.sh` located within the container on a path that defines a particular combination of HPC host, MPI library
 and compiler, e.g., `/opt/scripts/app/gromacs/host/archer2/cmpich8-ofi/gcc10`. The content of the `env.sh` for that particular example
 is produced below.
 
 ```bash
+# https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/host/archer2/cmpich8-ofi/gcc10/env.sh
+
 MPI_ROOT=/opt/cray/pe/mpich/8.0.16/ofi/gnu/9.1
 MPI_C_LIB=mpi
 MPI_CXX_LIB=mpi
@@ -394,12 +405,14 @@ LIBSCI_ROOT=/opt/cray/pe/libsci/20.10.1.2/GNU/9.1/x86_64
 FFTW_ROOT=/opt/cray/pe/fftw/3.3.8.8/x86_rome
 BLAS_LIBRARIES=${LIBSCI_ROOT}/lib/libsci_gnu_82_mpi_mp.so
 LAPACK_LIBRARIES=${BLAS_LIBRARIES}
-LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:/opt/cray/pe/lib64:/opt/cray/libfabric/1.11.0.0.233/lib64:/usr/lib64/host:/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu/libibverbs:/.singularity.d/libs
+LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:\
+  /opt/cray/pe/lib64:/opt/cray/libfabric/1.11.0.0.233/lib64:\
+  /usr/lib64/host:/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu/libibverbs:/.singularity.d/libs
 ```
 
 The sourcing of `env.sh` enables the make command to find the headers and libraries required to build the containerized application.
 
-Notice also, that the `build.sh` script takes some care ensuring that the make output is directed to appropriately named log files.
+Notice also, that the `build.sh` script takes some care ensuring that the make output is directed to an appropriately named log file.
 As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command (`singularity inspect -H gromacs.sif.2`)
 
 ```bash
@@ -420,17 +433,23 @@ These script files are named "submit.sh" and are organised by "<host name>/<MPI 
                      (/opt/logs/make.log.2)
 ```
 
-The above output might have hbeen revealed by running something like `singularity inspect -H gromacs.sif.2`.
-We see that the GROMACS code has been targeted twice at the ARCHER2 platform, once using Cray MPICH v8 and
-again using OpenMPI v4. Both of these events are time stampted and the container-based paths to the make logs are indicated
+The above output is revealed by running something like `singularity inspect -H gromacs.sif.2`. We see that the GROMACS code has been targeted
+twice at the ARCHER2 platform, once using Cray MPICH v8 and again using OpenMPI v4. Both of these events are time stamped and the
+container-based paths to the make logs are indicated. In this way, ownership of a container image should be sufficient for
+determining the HPC platforms on which the containerized application is expected to run. Note also that batch submission script
+templates also exist within the container.
 
 
-It is apparent that this *targeting* workflow is somewhat complex involving many Bash scripts that can be executed in one of several
-environments, the Container Factory, the HPC host and a sandboxed Singularity container on the HPC host.
+It is apparent that this *targeting* workflow is somewhat complex involving many Bash scripts most of which are executed at the factory.
+The exceptions are the deployment script which is run on the HPC host and the build script which is run within the sandboxed Singularity
+container on the HPC host.
 
-In addition, recent versions of Singularity (>= 3.7.x), may provide a further complication: the need to create host-specific file paths
-within the container before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version
-of Singularity installed on that platform is 3.5.3-1, but the Tier-2 Cirrus machine has Singularity v3.7.2-1. And so, targeting the
-GROMACS container at Cirrus first requires that the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the
-use of the various bindpaths specified in the Cirrus `deploy.sh` script. This extra step is handled by the factory [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh)
-script.
+
+Addendum
+--------
+
+Recent versions of Singularity ($\ge$ 3.7.x), may provide a further complication: the need to create host-specific file paths within the container
+before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version of Singularity installed on
+that platform is 3.5.3-1, but, the [Tier-2 Cirrus machine](https://www.cirrus.ac.uk/) has Singularity v3.7.2-1. And so, targeting the GROMACS
+container at Cirrus, first requires the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the use of the various
+bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by the [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh) script.
