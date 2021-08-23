@@ -416,7 +416,7 @@ LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:\
 The sourcing of `env.sh` enables the make command to find the headers and libraries required to build the containerized application.
 
 Notice also, that the `build.sh` script takes some care ensuring that the make output is directed to an appropriately named log file.
-As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command,\
+As mentioned earlier, this is so a container's history can be accessed via the Singularity inspect command, such as \
 `singularity inspect -H gromacs.sif.2`.
 
 ```bash
