@@ -36,131 +36,123 @@ many other scripts, all of which can be found in the [Container Factory GitHub r
   echo "Gathering required scripts..."
   APP=gromacs
   SCRIPTS_ROOT=${HOME}/work/scripts
+  SCRIPTS_DEF=${SCRIPTS_ROOT}/def
+  SCRIPTS_APP=${SCRIPTS_ROOT}/app/${APP}
+  SCRIPTS_SNG=${SCRIPTS_ROOT}/fac/singularity
+
+  mkdir -p ./scripts/aux
+  cp ${SCRIPTS_ROOT}/aux/download_src.sh ./scripts/aux/
+  cp ${SCRIPTS_ROOT}/aux/install_cmp.sh ./scripts/aux/
+  cp ${SCRIPTS_ROOT}/aux/setup_env.sh ./scripts/aux/
+  cp ${SCRIPTS_ROOT}/aux/update_env.sh ./scripts/aux/
+  cp ${SCRIPTS_ROOT}/aux/add_log.sh ./scripts/aux/
+  cp ${SCRIPTS_ROOT}/aux/add_dirs.sh ./scripts/aux/
+
+  mkdir -p ./scripts/chk
+  cp ${SCRIPTS_ROOT}/chk/check_os.sh ./scripts/chk/
+  cp ${SCRIPTS_ROOT}/chk/check_gcc.sh ./scripts/chk/
+  cp ${SCRIPTS_ROOT}/chk/check_cmp.sh ./scripts/chk/
+
+  mkdir -p ./scripts/def
+  cp ${SCRIPTS_ROOT}/def/gromacs.def ./scripts/def/
+
+  mkdir -p ./scripts/os
+  cp ${SCRIPTS_ROOT}/os/ubuntu-20.04.sh ./scripts/os/
+
+  mkdir -p ./scripts/cmp
+  cp -r ${SCRIPTS_ROOT}/cmp/miniconda ./scripts/cmp/
+  cp ${SCRIPTS_ROOT}/cmp/cmake.sh ./scripts/cmp/
+
+  mkdir -p ./scripts/app/${APP}
+  cp ${SCRIPTS_APP}/source.sh ./scripts/app/${APP}/
+  cp ${SCRIPTS_APP}/build.sh ./scripts/app/${APP}/
+  cp -r ${SCRIPTS_APP}/host ./scripts/app/${APP}/
+
+  tar -czf scripts.tar.gz ./scripts
+  rm -rf scripts
+
+  echo "Creating ${APP} singularity image file..."
+  ${SCRIPTS_SNG}/create.sh ${SCRIPTS_DEF}/${APP}.def ${PWD}/${APP}.sif.0 &> create.log
+
+  echo "Adding creation log to image file..."
+  ${SCRIPTS_SNG}/add_log.sh ${PWD}/${APP}.sif.0 create log
+
+  echo "Final tidy up..."
+  rm create.log
+  rm scripts.tar.gz
+
+  echo "Creation complete!"
+  echo "${PWD}/${APP}.sif.0"
   ```
 
 </details>
 
-```bash
-#!/bin/bash
-
-echo "Deleting old images, logs and scripts..."
-rm -f *.sif*
-rm -f *.log
-rm -rf scripts*
-
-echo "Gathering required scripts..."
-APP=gromacs
-SCRIPTS_ROOT=${HOME}/work/scripts
-SCRIPTS_DEF=${SCRIPTS_ROOT}/def
-SCRIPTS_APP=${SCRIPTS_ROOT}/app/${APP}
-SCRIPTS_SNG=${SCRIPTS_ROOT}/fac/singularity
-
-mkdir -p ./scripts/aux
-cp ${SCRIPTS_ROOT}/aux/download_src.sh ./scripts/aux/
-cp ${SCRIPTS_ROOT}/aux/install_cmp.sh ./scripts/aux/
-cp ${SCRIPTS_ROOT}/aux/setup_env.sh ./scripts/aux/
-cp ${SCRIPTS_ROOT}/aux/update_env.sh ./scripts/aux/
-cp ${SCRIPTS_ROOT}/aux/add_log.sh ./scripts/aux/
-cp ${SCRIPTS_ROOT}/aux/add_dirs.sh ./scripts/aux/
-
-mkdir -p ./scripts/chk
-cp ${SCRIPTS_ROOT}/chk/check_os.sh ./scripts/chk/
-cp ${SCRIPTS_ROOT}/chk/check_gcc.sh ./scripts/chk/
-cp ${SCRIPTS_ROOT}/chk/check_cmp.sh ./scripts/chk/
-
-mkdir -p ./scripts/def
-cp ${SCRIPTS_ROOT}/def/gromacs.def ./scripts/def/
-
-mkdir -p ./scripts/os
-cp ${SCRIPTS_ROOT}/os/ubuntu-20.04.sh ./scripts/os/
-
-mkdir -p ./scripts/cmp
-cp -r ${SCRIPTS_ROOT}/cmp/miniconda ./scripts/cmp/
-cp ${SCRIPTS_ROOT}/cmp/cmake.sh ./scripts/cmp/
-
-mkdir -p ./scripts/app/${APP}
-cp ${SCRIPTS_APP}/source.sh ./scripts/app/${APP}/
-cp ${SCRIPTS_APP}/build.sh ./scripts/app/${APP}/
-cp -r ${SCRIPTS_APP}/host ./scripts/app/${APP}/
-
-tar -czf scripts.tar.gz ./scripts
-rm -rf scripts
-
-echo "Creating ${APP} singularity image file..."
-${SCRIPTS_SNG}/create.sh ${SCRIPTS_DEF}/${APP}.def ${PWD}/${APP}.sif.0 &> create.log
-
-echo "Adding creation log to image file..."
-${SCRIPTS_SNG}/add_log.sh ${PWD}/${APP}.sif.0 create log
-
-echo "Final tidy up..."
-rm create.log
-rm scripts.tar.gz
-
-echo "Creation complete!"
-echo "${PWD}/${APP}.sif.0"
-```
-
 The key line in the script above is the one that creates the container image; it takes
 as input a Singularity definition file, `gromacs.def`.
 
-```bash
-Bootstrap: library
-From: ubuntu:20.04
+<details>
+  <summary>GROMACS Singularity Definition File</summary>
 
-%setup
-    # empty
+  ```bash
+  Bootstrap: library
+  From: ubuntu:20.04
 
-%files
-    ${HOME}/work/scripts/post_start.sh /opt/
-    ${HOME}/work/scripts/post_stop.sh /opt/
-    ${HOME}/work/builds/gromacs/scripts.tar.gz /opt/
+  %setup
+      # empty
 
-%environment
-    # empty
+  %files
+      ${HOME}/work/scripts/post_start.sh /opt/
+      ${HOME}/work/scripts/post_stop.sh /opt/
+      ${HOME}/work/builds/gromacs/scripts.tar.gz /opt/
 
-%post
-    . /opt/post_start.sh
+  %environment
+      # empty
 
-    ubuntu-20.04.sh 10
+  %post
+      . /opt/post_start.sh
 
-    miniconda.sh 3 4.8.3 38
-    conda_install.sh numpy,scipy,matplotlib
+      ubuntu-20.04.sh 10
 
-    cmake.sh 3.18.4
+      miniconda.sh 3 4.8.3 38
+      conda_install.sh numpy,scipy,matplotlib
 
-    source.sh gromacs 2021.1
+      cmake.sh 3.18.4
 
-    . /opt/post_stop.sh
+      source.sh gromacs 2021.1
 
-%runscript
-    # empty
+      . /opt/post_stop.sh
 
-%startscript
-    # empty
+  %runscript
+      # empty
 
-%test
-    ROOT=/opt/scripts
-    export PATH=${ROOT}/chk:${ROOT}/aux:${ROOT}/os:${ROOT}/cmp:${PATH}
-    check_os.sh "Ubuntu 20.04.2"
-    check_gcc.sh "10.3.0"
-    check_cmp.sh ${MINICONDA3_ROOT} ${MINICONDA3_NAME}
-    check_cmp.sh ${CMAKE_ROOT} ${CMAKE_NAME}
+  %startscript
+      # empty
 
-%labels
-    Author Michael Bareford
-    Email m.bareford@epcc.ed.ac.uk
-    Version v1.0.0
+  %test
+      ROOT=/opt/scripts
+      export PATH=${ROOT}/chk:${ROOT}/aux:${ROOT}/os:${ROOT}/cmp:${PATH}
+      check_os.sh "Ubuntu 20.04.2"
+      check_gcc.sh "10.3.0"
+      check_cmp.sh ${MINICONDA3_ROOT} ${MINICONDA3_NAME}
+      check_cmp.sh ${CMAKE_ROOT} ${CMAKE_NAME}
 
-%help
-    This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
-    an OpenStack Ubuntu 20.04 instance (ID 859596f3-6683-4951-82d4-f9e080c30d1f) hosted by the University of Edinburgh Eleanor Research Cloud.
+  %labels
+      Author Michael Bareford
+      Email m.bareford@epcc.ed.ac.uk
+      Version v1.0.0
 
-    The container is based on Ubuntu 20.04 and features GCC 10.3.0, Miniconda3 4.8.3, CMake 3.18.4 and the GROMACS source code version 2021.1.
-    See the container creation log at "/opt/logs/create.log.0" and the original definition file at "/opt/scripts/def/gromacs.def".
+  %help
+      This GROMACS (http://www.gromacs.org/) container image file was created at the EPCC Container Factory,
+      an OpenStack Ubuntu 20.04 instance (ID 859596f3-6683-4951-82d4-f9e080c30d1f) hosted by the University of Edinburgh Eleanor Research Cloud.
 
-    Submission script templates can be found under "/opt/scripts/app/gromacs/host/".
-    These script files are named "submit.sh" and are organised by "<host name>/<MPI library>/<compiler>".
-```
+      The container is based on Ubuntu 20.04 and features GCC 10.3.0, Miniconda3 4.8.3, CMake 3.18.4 and the GROMACS source code version 2021.1.
+      See the container creation log at "/opt/logs/create.log.0" and the original definition file at "/opt/scripts/def/gromacs.def".
+
+      Submission script templates can be found under "/opt/scripts/app/gromacs/host/".
+      These script files are named "submit.sh" and are organised by "<host name>/<MPI library>/<compiler>".
+  ```
+
+</details>
 
 The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) and the GCC compiler (major) version. Subsequent
 commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple
@@ -222,36 +214,41 @@ specifies the GROMACS version (2021.1), the host MPI library (Cray MPICH v8) and
 The `target.sh` script is actually quite simple: the container image file is uploaded to the HPC platform (the target), a *deployment* script
 is run and then a *new* container image file is downloaded back to the factory.
 
-```bash
-#!/bin/bash
+<details>
+  <summary>Targeting Script</summary>
 
-SCRIPTS_ROOT=$1
-IMG_PATH=$2
-APP=$3
-HOST=$4
-DEPLOY_PATH=$5
-DEPLOY_ARGS="${APP} ${DEPLOY_PATH}/${APP}.sif \"$6\""
-DEPLOY_SCRIPT=${SCRIPTS_ROOT}/app/${APP}/host/${HOST}/deploy.sh
+  ```bash
+  #!/bin/bash
 
-. ${SCRIPTS_ROOT}/fac/singularity/get_latest_suffix.sh
-get_latest_suffix ${IMG_PATH} ${APP}
-next_suffix=`expr ${suffix} + 1`
+  SCRIPTS_ROOT=$1
+  IMG_PATH=$2
+  APP=$3
+  HOST=$4
+  DEPLOY_PATH=$5
+  DEPLOY_ARGS="${APP} ${DEPLOY_PATH}/${APP}.sif \"$6\""
+  DEPLOY_SCRIPT=${SCRIPTS_ROOT}/app/${APP}/host/${HOST}/deploy.sh
 
-echo "Uploading ${APP} singularity image to ${HOST} host..."
-scp ${IMG_PATH}/${APP}.sif.${suffix} ${HOST}:${DEPLOY_PATH}/${APP}.sif
+  . ${SCRIPTS_ROOT}/fac/singularity/get_latest_suffix.sh
+  get_latest_suffix ${IMG_PATH} ${APP}
+  next_suffix=`expr ${suffix} + 1`
 
-echo "Running the deployment script that builds a containerized ${APP} app on the ${HOST} host..."
-ssh ${HOST} "bash -ls" < ${DEPLOY_SCRIPT} ${DEPLOY_ARGS}
+  echo "Uploading ${APP} singularity image to ${HOST} host..."
+  scp ${IMG_PATH}/${APP}.sif.${suffix} ${HOST}:${DEPLOY_PATH}/${APP}.sif
 
-echo "Downloading new ${APP} singularity image from ${HOST} host..."
-scp ${HOST}:${DEPLOY_PATH}/${APP}.sif ${IMG_PATH}/${APP}.sif.${next_suffix}
+  echo "Running the deployment script that builds a containerized ${APP} app on the ${HOST} host..."
+  ssh ${HOST} "bash -ls" < ${DEPLOY_SCRIPT} ${DEPLOY_ARGS}
 
-echo "Deleting the ${APP} singularity image left on ${HOST} host..."
-ssh ${HOST} rm -f ${DEPLOY_PATH}/${APP}.sif
+  echo "Downloading new ${APP} singularity image from ${HOST} host..."
+  scp ${HOST}:${DEPLOY_PATH}/${APP}.sif ${IMG_PATH}/${APP}.sif.${next_suffix}
 
-echo "Targeting complete!"
-echo "${IMG_PATH}/${APP}.sif.${next_suffix}"
-```
+  echo "Deleting the ${APP} singularity image left on ${HOST} host..."
+  ssh ${HOST} rm -f ${DEPLOY_PATH}/${APP}.sif
+
+  echo "Targeting complete!"
+  echo "${IMG_PATH}/${APP}.sif.${next_suffix}"
+  ```
+
+</details>
 
 What is the deployment script? It is a short script (provided by the repo) that is executed on the
 the target (the HPC host).
@@ -260,30 +257,35 @@ The deployment script may vary slightly from host to host: some HPC platforms ha
 such that it is automatically provided, whereas other platforms require that you first run a module
 load command.
 
-```bash
-#!/bin/bash
+<details>
+  <summary>Deployment Script</summary>
+
+  ```bash
+  #!/bin/bash
   
-APP=$1
-SIF=$2
-HOST=archer2
-BUILD_ARGS="${HOST} $3"
-BIND_ARGS=`singularity exec ${SIF} cat /opt/scripts/app/${APP}/host/${HOST}/bindpaths.lst`
+  APP=$1
+  SIF=$2
+  HOST=archer2
+  BUILD_ARGS="${HOST} $3"
+  BIND_ARGS=`singularity exec ${SIF} cat /opt/scripts/app/${APP}/host/${HOST}/bindpaths.lst`
 
-echo "Converting ${APP} container image to sandbox..."
-singularity build --sandbox ${SIF}.sandbox ${SIF}
-echo ""
+  echo "Converting ${APP} container image to sandbox..."
+  singularity build --sandbox ${SIF}.sandbox ${SIF}
+  echo ""
 
-echo "Building ${APP} within container sandbox..."
-singularity exec -B ${BIND_ARGS} --writable ${SIF}.sandbox /opt/scripts/app/${APP}/build.sh ${BUILD_ARGS}
-echo ""
+  echo "Building ${APP} within container sandbox..."
+  singularity exec -B ${BIND_ARGS} --writable ${SIF}.sandbox /opt/scripts/app/${APP}/build.sh ${BUILD_ARGS}
+  echo ""
 
-echo "Converting ${APP} container sandbox back to image..."
-singularity build --force ${SIF} ${SIF}.sandbox
-echo ""
+  echo "Converting ${APP} container sandbox back to image..."
+  singularity build --force ${SIF} ${SIF}.sandbox
+  echo ""
 
-echo "Deleting ${APP} container sandbox..."
-rm -rf ${SIF}.sandbox
-```
+  echo "Deleting ${APP} container sandbox..."
+  rm -rf ${SIF}.sandbox
+  ```
+
+</details>
 
 The first important step is the extraction of the bind paths (the links between the container OS and
 the host OS) that will need to be specified when the containerized application is built. These bind
@@ -306,62 +308,67 @@ the deployment script uses the `--force` flag to ensure that the original image 
 
 The GROMACS build script is shown below --- the `cmake` command has been abbreviated for clarity.
 
-```bash
-#!/bin/bash
+<details>
+  <summary>GROMACS Build Script</summary>
 
-HOST=$1
-VERSION=$2
-MPI_LABEL=$3
-COMPILER_LABEL=$4
+  ```bash
+  #!/bin/bash
 
-LABEL=gromacs
-NAME=${LABEL}-${VERSION}
-ROOT=/opt/app/${LABEL}
-HOST_PATH=${HOST}/${MPI_LABEL}/${COMPILER_LABEL}
-SCRIPTS_ROOT=/opt/scripts/app/${LABEL}/host/${HOST_PATH}
-BUILD_ROOT=${ROOT}/${NAME}
-INSTALL_ROOT=${ROOT}/${VERSION}/${HOST_PATH}
-LOG_ROOT=/opt/logs
-CMAKE_PRELOAD=/lib/x86_64-linux-gnu/libssl.so.1.1:/lib/x86_64-linux-gnu/libcrypto.so.1.1
+  HOST=$1
+  VERSION=$2
+  MPI_LABEL=$3
+  COMPILER_LABEL=$4
 
-# set the build environment
-. ${SCRIPTS_ROOT}/env.sh
+  LABEL=gromacs
+  NAME=${LABEL}-${VERSION}
+  ROOT=/opt/app/${LABEL}
+  HOST_PATH=${HOST}/${MPI_LABEL}/${COMPILER_LABEL}
+  SCRIPTS_ROOT=/opt/scripts/app/${LABEL}/host/${HOST_PATH}
+  BUILD_ROOT=${ROOT}/${NAME}
+  INSTALL_ROOT=${ROOT}/${VERSION}/${HOST_PATH}
+  LOG_ROOT=/opt/logs
+  CMAKE_PRELOAD=/lib/x86_64-linux-gnu/libssl.so.1.1:/lib/x86_64-linux-gnu/libcrypto.so.1.1
 
-# set make log name
-mkdir -p ${LOG_ROOT}
-if [ -f "${LOG_ROOT}/.make" ]; then
-  makecnt=`cat ${LOG_ROOT}/.make`
-  makecnt=`expr ${makecnt} + 1`
-else
-  makecnt="1"
-fi
-MAKE_LOG=${LOG_ROOT}/make.log.${makecnt}
-echo "${makecnt}" > ${LOG_ROOT}/.make
+  # set the build environment
+  . ${SCRIPTS_ROOT}/env.sh
 
-# set compiler and build flags
-export CXX=g++
-export CC=gcc
-export FLAGS="-O3 -ftree-vectorize -funroll-loops"
+  # set make log name
+  mkdir -p ${LOG_ROOT}
+  if [ -f "${LOG_ROOT}/.make" ]; then
+    makecnt=`cat ${LOG_ROOT}/.make`
+    makecnt=`expr ${makecnt} + 1`
+  else
+    makecnt="1"
+  fi
+  MAKE_LOG=${LOG_ROOT}/make.log.${makecnt}
+  echo "${makecnt}" > ${LOG_ROOT}/.make
 
-# build
-BUILD_PATH=${BUILD_ROOT}/build/${HOST_PATH}/single
-rm -rf ${BUILD_PATH}
-mkdir -p ${BUILD_PATH}
-cd ${BUILD_PATH}
+  # set compiler and build flags
+  export CXX=g++
+  export CC=gcc
+  export FLAGS="-O3 -ftree-vectorize -funroll-loops"
 
-LD_PRELOAD=${CMAKE_PRELOAD} cmake ${BUILD_ROOT} \
-    -DGMX_MPI=ON -DGMX_OPENMP=ON -DGMX_HWLOC=OFF -DGMX_GPU=OFF \
-    ...
-    -DCMAKE_INSTALL_PREFIX=${INSTALL_ROOT} &> ${MAKE_LOG}
+  # build
+  BUILD_PATH=${BUILD_ROOT}/build/${HOST_PATH}/single
+  rm -rf ${BUILD_PATH}
+  mkdir -p ${BUILD_PATH}
+  cd ${BUILD_PATH}
 
-LD_PRELOAD=${CMAKE_PRELOAD} make install &>> ${MAKE_LOG}
+  LD_PRELOAD=${CMAKE_PRELOAD} cmake ${BUILD_ROOT} \
+      -DGMX_MPI=ON -DGMX_OPENMP=ON -DGMX_HWLOC=OFF -DGMX_GPU=OFF \
+      ...
+      -DCMAKE_INSTALL_PREFIX=${INSTALL_ROOT} &> ${MAKE_LOG}
 
-# record
-currentDateTime=`date +"%Y-%m-%d %T"`
-echo "    ${currentDateTime}: Built ${LABEL} ${VERSION} (${MPI_LABEL}-${COMPILER_LABEL}) on ${HOST}" >> /.singularity.d/runscript.help
-echo "                         (${MAKE_LOG})" >> /.singularity.d/runscript.help
-echo "" >> /.singularity.d/runscript.help
-```
+  LD_PRELOAD=${CMAKE_PRELOAD} make install &>> ${MAKE_LOG}
+
+  # record
+  currentDateTime=`date +"%Y-%m-%d %T"`
+  echo "    ${currentDateTime}: Built ${LABEL} ${VERSION} (${MPI_LABEL}-${COMPILER_LABEL}) on ${HOST}" >> /.singularity.d/runscript.help
+  echo "                         (${MAKE_LOG})" >> /.singularity.d/runscript.help
+  echo "" >> /.singularity.d/runscript.help
+  ```
+
+</details>
 
 At the beginning of the build script many environment variables are initialised; a further set of variables are initialised by sourcing
 a second script called `env.sh` located within the container on a path that defines a particular combination of HPC host, MPI library
