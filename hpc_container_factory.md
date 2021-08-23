@@ -16,17 +16,19 @@ individual's machine, and the building of a factory can of course be scripted al
 container factories, see [https://github.com/mbareford/container-factory](https://github.com/mbareford/container-factory).
 
 
-Creating the Container
-----------------------
+Creating the Initial Container Image
+------------------------------------
 
-The creation of an application-specific container takes place within the factory builds area, e.g., `~/work/builds/gromacs`.
+The making of an application-specific container takes place within the factory builds area, e.g., `~/work/builds/gromacs`.
 Presented below is the top-level creation script for the [GROMACS](https://www.gromacs.org/) code. This script references 
 many other scripts, all of which can be found in the [Container Factory GitHub repo](https://github.com/mbareford/container-factory).
 
 <details>
-  <summary>Top-level Creation Script</summary>
+  <summary>Creation Script</summary>
 
   ```bash
+  # https://github.com/mbareford/container-factory/blob/main/builds/gromacs/create.sh
+
   #!/bin/bash
 
   echo "Deleting old images, logs and scripts..."
@@ -73,7 +75,7 @@ many other scripts, all of which can be found in the [Container Factory GitHub r
   rm -rf scripts
 
   echo "Creating ${APP} singularity image file..."
-  ${SCRIPTS_SNG}/create.sh ${SCRIPTS_DEF}/${APP}.def ${PWD}/${APP}.sif.0 &> create.log
+  sudo singularity build ${PWD}/${APP}.sif.0 ${SCRIPTS_DEF}/${APP}.def &> create.log
 
   echo "Adding creation log to image file..."
   ${SCRIPTS_SNG}/add_log.sh ${PWD}/${APP}.sif.0 create log
@@ -88,13 +90,14 @@ many other scripts, all of which can be found in the [Container Factory GitHub r
 
 </details>
 
-The key line in the script above is the one that creates the container image; it takes
-as input a Singularity definition file, `gromacs.def`.
+The key line in the script above is the one that builds the container image; it takes as input a Singularity definition file, `gromacs.def`.
 
 <details>
   <summary>GROMACS Singularity Definition File</summary>
 
   ```bash
+  # https://github.com/mbareford/container-factory/blob/main/scripts/def/gromacs.def
+
   Bootstrap: library
   From: ubuntu:20.04
 
@@ -155,25 +158,32 @@ as input a Singularity definition file, `gromacs.def`.
 
 </details>
 
-The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) and the GCC compiler (major) version. Subsequent
-commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple
-script called `source.sh`, see below.
+The `post` section of the definition file specifies the container OS (Ubuntu 20.04 in this case) as well as the GCC compiler (major) version. Subsequent
+commands install Miniconda3, CMake 3.18.4 and the GROMACS 2021.1 *source code*. The installation of the GROMACS source is handled by a simple script called
+`source.sh`, see below.
 
-```bash
-#!/bin/bash
+<details>
+  <summary>GROMACS Source Script</summary>
+
+  ```bash
+  # https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/source.sh
+
+  #!/bin/bash
   
-VERSION=$2
-LABEL=$1
-NAME=${LABEL}-${VERSION}
-ROOT=/opt/app/${LABEL}
+  VERSION=$2
+  LABEL=$1
+  NAME=${LABEL}-${VERSION}
+  ROOT=/opt/app/${LABEL}
 
-mkdir -p ${ROOT}
-cd ${ROOT}
+  mkdir -p ${ROOT}
+  cd ${ROOT}
 
-wget https://ftp.gromacs.org/${LABEL}/${NAME}.tar.gz
-tar -xzf ${NAME}.tar.gz
-rm ${NAME}.tar.gz
-```
+  wget https://ftp.gromacs.org/${LABEL}/${NAME}.tar.gz
+  tar -xzf ${NAME}.tar.gz
+  rm ${NAME}.tar.gz
+  ```
+
+</details>
 
 The creation phase should result in an image file such as `gromacs.sif.0`. This file can be *inspected* by running
 `singularity inspect -H gromacs.sif.0`.
