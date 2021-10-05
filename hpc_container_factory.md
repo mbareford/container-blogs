@@ -411,7 +411,7 @@ LAPACK_LIBRARIES=${BLAS_LIBRARIES}
 LD_LIBRARY_PATH=${FFTW_ROOT}/lib:${LIBSCI_ROOT}/lib:${MPI_ROOT}/lib:\
   /opt/cray/pe/lib64:/opt/cray/libfabric/1.11.0.0.233/lib64:\
   /usr/lib64/host:/usr/lib64/host/libibverbs:\
-  /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu/libibverbs:/.singularity.d/libs
+  /lib/x86_64-linux-gnu:/.singularity.d/libs
 CC=gcc
 CXX=g++
 ```
@@ -460,5 +460,5 @@ Addendum
 Recent versions of Singularity (&geq; 3.7.x) may provide a further complication: the need to create host-specific file paths within the container
 before the targeting process can begin. This isn't currently an issue with the ARCHER2 4cab system as the version of Singularity installed on
 that platform is 3.5.3-1, but, the [Tier-2 Cirrus machine](https://www.cirrus.ac.uk/) has Singularity v3.7.2-1. And so, targeting the GROMACS
-container at Cirrus, first requires the creation of the `/lustre`, `/opt/sw` and `/opt/hpe` paths in order to support the use of the various
+container at Cirrus, first requires the creation of the `/lustre/sw`, `/opt/hpe` and `/etc/libibverbs.d` paths in order to support the use of the various
 bindpaths specified in the accompanying Cirrus `deploy.sh` script. This extra step is handled at the factory by [`target_init.sh`](https://github.com/mbareford/container-factory/blob/main/scripts/fac/singularity/target_init.sh).
