@@ -314,7 +314,7 @@ are different for each HPC host. Presented below are the bind paths for the ARCH
 ```bash
 # https://github.com/mbareford/container-factory/blob/main/scripts/app/gromacs/host/archer2/bindpaths.lst
 
-/work/y07/shared,/opt/cray,/usr/lib64:/usr/lib64/host
+/work/y07/shared,/opt/cray,/usr/lib64:/usr/lib64/host,/etc/libibverbs.d
 ```
 
 You can see that the bind paths are given as a comma separated list. The syntax for a single bind path
